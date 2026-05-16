@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童動物節拍器 🐢 🐇</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0fdf4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        /* 視覺閃爍圓圈 */
+        #visual-flash {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-color: #4ade80;
+            margin-bottom: 30px;
+            transition: transform 0.05s ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .flash {
+            background-color: #f43f5e !important;
+            transform: scale(1.1);
+        }
+        .controls {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        button {
+            font-size: 24px;
+            padding: 10px 25px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            background-color: #3b82f6;
+            color: white;
+            transition: background 0.2s;
+        }
+        button:active { background-color: #1d4ed8; }
+        #start-btn { background-color: #10b981; }
+        #start-btn.playing { background-color: #ef4444; }
+        .tempo-display {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 視覺提示 -->
+    <div id="visual-flash"></div>
+
+    <div class="controls">
+        <div class="tempo-display">
+            <span id="animal-icon">🐢</span> <span id="bpm-text">90</span> BPM
+        </div>
+        
+        <input type="range" id="tempo-slider" min="40" max="200" value="90" style="width: 200px;">
+        <br>
+        <button id="minus-btn">－</button>
+        <button id="plus-btn">＋</button>
+        <br>
+        <button id="start-btn">開始 🎵</button>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let isPlaying = false;
+        let bpm = 90;
+        let intervalId = null;
+
+        const flashContext = document.getElementById('visual-flash');
+        const startBtn = document.getElementById('start-btn');
+        const bpmText = document.getElementById('bpm-text');
+        const tempoSlider = document.getElementById('tempo-slider');
+        const animalIcon = document.getElementById('animal-icon');
+
+        // 發出嗶聲的函數 (Web Audio API)
+        function playClick() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime); // 頻率 800Hz
+            
+            // 快速淡出，做成短促的點擊聲
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+
+            // 視覺閃爍效果
+            flashContext.classList.add('flash');
+            setTimeout(() => flashContext.classList.remove('flash'), 100);
+        }
+
+        function updateTempo() {
+            bpmText.innerText = bpm;
+            tempoSlider.value = bpm;
+            
+            // 根據速度換動物圖案
+            if (bpm < 70) animalIcon.innerText = '🐌';
+            else if (bpm < 110) animalIcon.innerText = '🐢';
+            else if (bpm < 150) animalIcon.innerText = '🐇';
+            else animalIcon.innerText = '🐆';
+
+            if (isPlaying) {
+                stopMetronome();
+                startMetronome();
+            }
+        }
+
+        function startMetronome() {
+            const interval = (60 / bpm) * 1000;
+            playClick(); // 第一下直接響
+            intervalId = setInterval(playClick, interval);
+        }
+
+        function stopMetronome() {
+            clearInterval(intervalId);
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                stopMetronome();
+                startBtn.innerText = '開始 🎵';
+                startBtn.classList.remove('playing');
+            } else {
+                startMetronome();
+                startBtn.innerText = '停止 🛑';
+                startBtn.classList.add('playing');
+            }
+            isPlaying = !isPlaying;
+        });
+
+        tempoSlider.addEventListener('input', (e) => {
+            bpm = parseInt(e.target.value);
+            updateTempo();
+        });
+
+        document.getElementById('plus-btn').addEventListener('click', () => {
+            if (bpm < 200) { bpm++; updateTempo(); }
+        });
+
+        document.getElementById('minus-btn').addEventListener('click', () => {
+            if (bpm > 40) { bpm--; updateTempo(); }
+        });
+    </script>
+</body>
+</html>
