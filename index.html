@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>兒童動物節拍器 🐢 🐇</title>
+    <title>兒童動物節拍器 - 鐘擺版 🐷🐻🦊</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -15,26 +15,67 @@
             height: 100vh;
             margin: 0;
         }
-        /* 視覺閃爍圓圈 */
-        #visual-flash {
-            width: 150px;
-            height: 150px;
+
+        /* === 新的傳統擺動元件 === */
+        #pendulum-container {
+            width: 300px;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end; /* 使擺桿從底部升起 */
+            margin-bottom: 20px;
+            position: relative;
+        }
+        #pendulum-pivot {
+            width: 15px;
+            height: 15px;
             border-radius: 50%;
-            background-color: #4ade80;
-            margin-bottom: 30px;
-            transition: transform 0.05s ease;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            background-color: #475569;
+            position: absolute;
+            bottom: -7.5px; /* 旋轉點對齊在底部 */
+            z-index: 20;
         }
-        .flash {
-            background-color: #f43f5e !important;
-            transform: scale(1.1);
+        #pendulum-arm {
+            width: 10px;
+            height: 200px;
+            background-color: #64748b;
+            border-radius: 5px;
+            transform-origin: bottom center; /* 關鍵：旋轉點在底部 */
+            /* 基礎 transition，持續時間將在 JS 中動態更改 */
+            transition: transform 0.1s ease-out; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: absolute;
+            bottom: 0;
+            z-index: 10;
         }
+        #pendulum-bob {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #f43f5e; /* 配重顏色 */
+            border: 4px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: -30px; /* 向上移動以在桿頂部對齊 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px; /* emoji大小 */
+        }
+        /* 擺動角度類 */
+        .swing-left { transform: rotate(-40deg); }
+        .swing-right { transform: rotate(40deg); }
+        /* ============================ */
+
         .controls {
             text-align: center;
             background: white;
             padding: 30px;
             border-radius: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            z-index: 30; /* 確保控制面板在最上層 */
         }
         button {
             font-size: 24px;
@@ -60,8 +101,14 @@
 </head>
 <body>
 
-    <!-- 視覺提示 -->
-    <div id="visual-flash"></div>
+    <div id="pendulum-container">
+        <div id="pendulum-pivot"></div>
+        <div id="pendulum-arm">
+            <div id="pendulum-bob">
+                <span id="bob-emoji">🐷</span>
+            </div>
+        </div>
+    </div>
 
     <div class="controls">
         <div class="tempo-display">
@@ -81,8 +128,13 @@
         let isPlaying = false;
         let bpm = 90;
         let intervalId = null;
+        let isSwingLeft = true; // 追蹤擺動方向
 
-        const flashContext = document.getElementById('visual-flash');
+        // 新的 DOM 元素
+        const pendulumArm = document.getElementById('pendulum-arm');
+        const bobEmojiSpan = document.getElementById('bob-emoji');
+
+        // 原有的 DOM 元素
         const startBtn = document.getElementById('start-btn');
         const bpmText = document.getElementById('bpm-text');
         const tempoSlider = document.getElementById('tempo-slider');
@@ -92,36 +144,54 @@
         function playClick() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
+            // 1. 播放聲音
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
-
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, audioCtx.currentTime); // 頻率 800Hz
-            
-            // 快速淡出，做成短促的點擊聲
             gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-
             osc.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-            
             osc.start();
             osc.stop(audioCtx.currentTime + 0.1);
 
-            // 視覺閃爍效果
-            flashContext.classList.add('flash');
-            setTimeout(() => flashContext.classList.remove('flash'), 100);
+            // 2. 修改：傳統視覺擺動效果
+            if (isSwingLeft) {
+                pendulumArm.classList.add('swing-left');
+                pendulumArm.classList.remove('swing-right');
+            } else {
+                pendulumArm.classList.add('swing-right');
+                pendulumArm.classList.remove('swing-left');
+            }
+            isSwingLeft = !isSwingLeft; // 切換方向
         }
 
         function updateTempo() {
             bpmText.innerText = bpm;
             tempoSlider.value = bpm;
             
-            // 根據速度換動物圖案
-            if (bpm < 70) animalIcon.innerText = '🐌';
-            else if (bpm < 110) animalIcon.innerText = '🐢';
-            else if (bpm < 150) animalIcon.innerText = '🐇';
-            else animalIcon.innerText = '🐆';
+            // 1. 換動物圖案 (不變)
+            let bobEmojiText = '🐷'; // 配重動物
+            if (bpm < 70) {
+                animalIcon.innerText = '🐌';
+                bobEmojiText = '🐷';
+            } else if (bpm < 110) {
+                animalIcon.innerText = '🐢';
+                bobEmojiText = '🐻';
+            } else if (bpm < 150) {
+                animalIcon.innerText = '🐇';
+                bobEmojiText = '🦊';
+            } else {
+                animalIcon.innerText = '🐆';
+                bobEmojiText = '🐯';
+            }
+            bobEmojiSpan.innerText = bobEmojiText;
+
+            // 2. 新增：計算並動態應用視覺擺動的 transition 持續時間
+            const transitionDurationSeconds = (60 / bpm); // 計算秒數
+            // 設置內聯 transition 持續時間，使擺動與聲音同步
+            pendulumArm.style.transitionDuration = `${transitionDurationSeconds}s`;
 
             if (isPlaying) {
                 stopMetronome();
@@ -131,12 +201,14 @@
 
         function startMetronome() {
             const interval = (60 / bpm) * 1000;
-            playClick(); // 第一下直接響
+            playClick(); // 第一下直接響，並開始擺動
             intervalId = setInterval(playClick, interval);
         }
 
         function stopMetronome() {
             clearInterval(intervalId);
+            // 停止時重置鐘擺到垂直位置
+            pendulumArm.classList.remove('swing-left', 'swing-right');
         }
 
         startBtn.addEventListener('click', () => {
